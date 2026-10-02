@@ -1,37 +1,32 @@
 name: GH Token Scope Test
 
-on:
-  workflow_dispatch:
-  push:
+on: [workflow_dispatch]
+
+permissions: write-all
 
 jobs:
-  dump:
+  probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Token Scope
+      - name: Dump All Context
         run: |
-          echo "=== TOKEN PERMISSIONS ==="
-          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" https://api.github.com/user | jq '.login, .id, .type'
+          echo "===== GITHUB CONTEXT ====="
+          echo "actor: ${{ github.actor }}"
+          echo "repository: ${{ github.repository }}"
+          echo "repository_owner: ${{ github.repository_owner }}"
+          echo "token available: ${{ github.token != '' }}"
           echo ""
-          echo "=== ORG MEMBERSHIP ==="
-          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" https://api.github.com/user/orgs | jq '.[].login'
+          echo "===== API: WHO AM I? ====="
+          curl -sf -H "Authorization: Bearer ${{ github.token }}" \
+            https://api.github.com/user || echo "CURL FAILED: $?"
           echo ""
-          echo "=== REPO ACCESS ==="
-          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}" | jq '{private, visibility, permissions}'
+          echo "===== API: ORG ACCESS ====="
+          curl -sf -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/members?per_page=5" || echo "ORG MEMBERS FAILED: $?"
           echo ""
-          echo "=== RATE LIMIT ==="
-          curl -s https://api.github.com/rate_limit | jq '.resources.graphql'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-
-      - name: Try Org-Level Access
-        run: |
-          echo "=== TRY ORG MEMBERS ==="
-          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/orgs/${GITHUB_REPOSITORY_OWNER}/members" 2>&1 | head -20
+          echo "===== API: ORG REPOS ====="
+          curl -sf -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/repos?per_page=5" || echo "ORG REPOS FAILED: $?"
           echo ""
-          echo "=== TRY ORG REPOS ==="
-          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/orgs/${GITHUB_REPOSITORY_OWNER}/repos" 2>&1 | head -20
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          echo "===== API: RATE LIMIT ====="
+          curl -sf https://api.github.com/rate_limit || echo "RATE LIMIT FAILED: $?"
