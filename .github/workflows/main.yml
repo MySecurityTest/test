@@ -1,0 +1,37 @@
+name: GH Token Scope Test
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Token Scope
+        run: |
+          echo "=== TOKEN PERMISSIONS ==="
+          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" https://api.github.com/user | jq '.login, .id, .type'
+          echo ""
+          echo "=== ORG MEMBERSHIP ==="
+          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" https://api.github.com/user/orgs | jq '.[].login'
+          echo ""
+          echo "=== REPO ACCESS ==="
+          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/${GITHUB_REPOSITORY}" | jq '{private, visibility, permissions}'
+          echo ""
+          echo "=== RATE LIMIT ==="
+          curl -s https://api.github.com/rate_limit | jq '.resources.graphql'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Try Org-Level Access
+        run: |
+          echo "=== TRY ORG MEMBERS ==="
+          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/orgs/${GITHUB_REPOSITORY_OWNER}/members" 2>&1 | head -20
+          echo ""
+          echo "=== TRY ORG REPOS ==="
+          curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/orgs/${GITHUB_REPOSITORY_OWNER}/repos" 2>&1 | head -20
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
