@@ -4,28 +4,27 @@ on: [pull_request_target]
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      # VULNERABLE: checks out the PR head code and runs it in base repo context
-      - name: Checkout PR code
-        uses: actions/checkout@v4
+      # BYPASS TEST 1: older checkout version (pre-guard)
+      - name: Checkout PR via v2
+        uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
 
-      # This step runs a script FROM THE PR with access to base repo secrets
       - name: Run PR build script
         run: |
+          ls -la
           if [ -f ./build.sh ]; then
             chmod +x ./build.sh
             ./build.sh
           else
-            echo "no build script, running default"
-            echo "secret length: ${#TEST_SECRET} chars"
+            echo "no build script found"
+            echo "secret check: ${#TEST_SECRET} chars"
           fi
         env:
           TEST_SECRET: ${{ secrets.TEST_SECRET }}
